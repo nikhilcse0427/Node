@@ -1,57 +1,72 @@
-let users = [];
-let nextId = 1;
+const UserModel = require('../models/user.model'); // Import the Mongoose model
 
 // Get all users
-const getAllUsers = (req, res) => {
-  res.json(users);
+const getAllUsers = async (req, res) => {
+  try {
+    const users = await UserModel.find(); // Fetch all users from the database
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch users" });
+  }
 };
 
 // Get a user by ID
-const getUserById = (req, res) => {
-  const userId = parseInt(req.params.id);
-  const user = users.find(u => u.id === userId);
-
-  if (!user) {
-    return res.status(404).json({ error: "User not found" });
+const getUserById = async (req, res) => {
+  try {
+    const user = await UserModel.findById(req.params.id); // Find user by ID
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch user" });
   }
-
-  res.json(user);
 };
 
 // Create a new user
-const createUser = (req, res) => {
-  const newUser = {
-    id: nextId++,
-    ...req.body
-  };
-  users.push(newUser);
-  res.status(201).json(newUser);
+const createUser = async (req, res) => {
+  try {
+    const { first_name, last_name, email, gender, job_title } = req.body;
+    if (!first_name || !last_name || !email || !gender || !job_title) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+    const newUser = new UserModel({ first_name, last_name, email, gender, job_title });
+    await newUser.save(); // Save the new user to the database
+    res.status(201).json(newUser);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to create user" });
+  }
 };
 
 // Update a user by ID
-const updateUser = (req, res) => {
-  const userId = parseInt(req.params.id);
-  const userIndex = users.findIndex(u => u.id === userId);
-
-  if (userIndex === -1) {
-    return res.status(404).json({ error: "User not found" });
+const updateUser = async (req, res) => {
+  try {
+    const updates = req.body;
+    const user = await UserModel.findByIdAndUpdate(
+      req.params.id,
+      { $set: updates },
+      { new: true, runValidators: true } // Return the updated document
+    );
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to update user" });
   }
-
-  users[userIndex] = { id: userId, ...req.body };
-  res.json(users[userIndex]);
 };
 
 // Delete a user by ID
-const deleteUser = (req, res) => {
-  const userId = parseInt(req.params.id);
-  const userIndex = users.findIndex(u => u.id === userId);
-
-  if (userIndex === -1) {
-    return res.status(404).json({ error: "User not found" });
+const deleteUser = async (req, res) => {
+  try {
+    const user = await UserModel.findByIdAndDelete(req.params.id); // Delete user by ID
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    res.json({ message: `User with ID ${req.params.id} deleted` });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to delete user" });
   }
-
-  users.splice(userIndex, 1);
-  res.json({ message: `User with ID ${userId} deleted` });
 };
 
 module.exports = {
@@ -59,5 +74,5 @@ module.exports = {
   getUserById,
   createUser,
   updateUser,
-  deleteUser
+  deleteUser,
 };
